@@ -1,42 +1,107 @@
-import streamlit as st
 import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
 import plotly.express as px
-import PyPDF2
-from PIL import Image
-import numpy as np
+from wordcloud import WordCloud
 
 def analyze_tabular_data(df):
-    st.subheader("Data Overview")
-    st.write(df.head())
-    st.write("Summary Statistics")
-    st.write(df.describe())
-    
+    """Analyzes tabular data (CSV, Excel) with multiple visualizations."""
+    print("Data Overview:")
+    print(df.head())
+    print("Summary Statistics:")
+    print(df.describe())
+
     numeric_cols = df.select_dtypes(include=['int64', 'float64']).columns.tolist()
+    categorical_cols = df.select_dtypes(include=['object']).columns.tolist()
+
     if numeric_cols:
-        selected_col = st.selectbox("Select a column to visualize", numeric_cols)
-        fig = px.histogram(df, x=selected_col, marginal="box")
-        st.plotly_chart(fig, use_container_width=True)
+        selected_num_col = numeric_cols[0]
+
+        # Histogram
+        plt.figure(figsize=(8, 5))
+        sns.histplot(df[selected_num_col], kde=True)
+        plt.title("Histogram & Density Plot")
+        plt.show()
+
+        # Box Plot
+        plt.figure(figsize=(5, 5))
+        sns.boxplot(y=df[selected_num_col])
+        plt.title("Box Plot for Outliers")
+        plt.show()
+
+        # Scatter Plot
+        if len(numeric_cols) > 1:
+            plt.figure(figsize=(8, 5))
+            sns.scatterplot(x=df[numeric_cols[0]], y=df[numeric_cols[1]])
+            plt.title("Scatter Plot")
+            plt.show()
+
+        # Heatmap for correlation
+        plt.figure(figsize=(8, 5))
+        sns.heatmap(df[numeric_cols].corr(), annot=True, cmap="coolwarm", fmt=".2f", linewidths=0.5)
+        plt.title("Correlation Heatmap")
+        plt.show()
+
+    if categorical_cols:
+        selected_cat_col = categorical_cols[0]
+
+        # Pie Chart
+        plt.figure(figsize=(6, 6))
+        df[selected_cat_col].value_counts().plot.pie(autopct="%.1f%%")
+        plt.title("Pie Chart Distribution")
+        plt.ylabel("")
+        plt.show()
+
+        # Bar Chart
+        plt.figure(figsize=(8, 5))
+        sns.countplot(x=df[selected_cat_col])
+        plt.title("Categorical Data Distribution")
+        plt.xticks(rotation=45)
+        plt.show()
+
+        # Stacked Bar Chart
+        if numeric_cols:
+            plt.figure(figsize=(8, 5))
+            sns.barplot(x=df[selected_cat_col], y=df[numeric_cols[0]], ci=None)
+            plt.title("Stacked Bar Chart")
+            plt.xticks(rotation=45)
+            plt.show()
 
 def analyze_text(text):
-    st.subheader("Text Analysis")
+    """Performs text analysis with visualizations."""
     word_count = len(text.split())
-    st.write(f"Word Count: {word_count}")
-    st.text_area("Text Preview", text[:1000])
+    print(f"Word Count: {word_count}")
+    print("Text Preview:", text[:1000])
 
-def analyze_pdf(uploaded_file):
-    pdf_reader = PyPDF2.PdfReader(uploaded_file)
-    text = "\n".join([page.extract_text() for page in pdf_reader.pages if page.extract_text()])
-    analyze_text(text)
+    # Generate Word Cloud
+    generate_wordcloud(text)
 
-def analyze_image(uploaded_file):
-    image = Image.open(uploaded_file)
-    st.image(image, caption="Uploaded Image", use_column_width=True)
-    st.write(f"Image Size: {image.size}")
-    if image.mode == 'RGB':
-        r, g, b = image.split()
-        fig, ax = plt.subplots()
-        ax.hist(np.array(r).flatten(), bins=256, color='red', alpha=0.5, label='Red')
-        ax.hist(np.array(g).flatten(), bins=256, color='green', alpha=0.5, label='Green')
-        ax.hist(np.array(b).flatten(), bins=256, color='blue', alpha=0.5, label='Blue')
-        ax.legend()
-        st.pyplot(fig)
+    # Word Frequency Bar Chart
+    generate_word_frequency_chart(text)
+
+def generate_wordcloud(text):
+    """Generates and displays a word cloud if text is available."""
+    if not text.strip():
+        print("No words found in the text. Cannot generate a Word Cloud.")
+        return
+
+    wordcloud = WordCloud(width=800, height=400, background_color="white").generate(text)
+    plt.figure(figsize=(8, 4))
+    plt.imshow(wordcloud, interpolation="bilinear")
+    plt.axis("off")
+    plt.title("Word Cloud")
+    plt.show()
+
+def generate_word_frequency_chart(text):
+    """Generates a bar chart of the most frequent words in the text."""
+    words = text.split()
+    if not words:
+        return
+
+    word_freq = pd.Series(words).value_counts().head(10)
+    plt.figure(figsize=(8, 5))
+    sns.barplot(x=word_freq.values, y=word_freq.index, palette="coolwarm")
+    plt.title("Most Frequent Words")
+    plt.xlabel("Frequency")
+    plt.ylabel("Words")
+    plt.show()
